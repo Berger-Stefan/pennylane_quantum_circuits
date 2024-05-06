@@ -2,7 +2,7 @@ import pennylane as qml
 import torch
 import torch.autograd as autograd
 import math
-
+import optuna
 
 def config_and_training_wrapper(trial):
 
@@ -90,6 +90,11 @@ def config_and_training_wrapper(trial):
         loss.backward()
         opt.step()
         loss_history.append(loss.detach())
+        
+        trial.report(loss, i)
+
+        if trial.should_prune():
+            raise optuna.TrialPruned()
 
 
 
