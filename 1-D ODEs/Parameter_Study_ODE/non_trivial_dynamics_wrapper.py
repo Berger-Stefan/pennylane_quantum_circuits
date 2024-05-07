@@ -3,23 +3,24 @@ import torch
 import torch.autograd as autograd
 import math
 import optuna
+from datetime import datetime
 
 def config_and_training_wrapper(trial):
 
+    start_time = datetime.now()
     device = "cpu"
     #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Tunable Parameter
-    n_qubits = trial.suggest_int("n_qubits", 6, 6)
+    n_qubits = trial.suggest_int("n_qubits", 6,6)
     n_layers = trial.suggest_int("n_layers", 1, 10)
     learning_rate = trial.suggest_float("learning rate", 0.01, 0.2, log=True)
-    learning_rate = 0.2
-    boundary_scaling = trial.suggest_float("boundary scaling", 0.1, 1e6, log=True)
+    boundary_scaling = trial.suggest_float("boundary scaling", 1.0, 1e6, log=True)
+    n_steps = trial.suggest_int("collocation points", 1e1, 1e5, log=True)
     
     # Solver settings
     t_start = 0.0001
     t_end   = 0.9
-    n_steps = trial.suggest_int("collocation points", 1e1, 1e5, log=True)
     t = torch.linspace(t_start,t_end,n_steps,requires_grad=True, device=device)  
     
     u_0 = torch.tensor(0.75)    
@@ -43,7 +44,7 @@ def config_and_training_wrapper(trial):
 
 
 
-    @qml.qnode(qml.device("default.qubit.torch", wires=n_qubits), diff_method="best")
+    @qml.qnode(qml.device("default.qubit.torch", wires=n_qubits), diff_method="backprop")
     def circuit(x, weights):
         # Embedding
         for i in range(n_qubits):
@@ -90,6 +91,9 @@ def config_and_training_wrapper(trial):
         loss.backward()
         opt.step()
         loss_history.append(loss.detach())
+        
+        # Stop Training after 5 minutes
+        if (datetime.now() - start_time).total_seconds() > (5*60): return min([float(tensor) for tensor in loss_history])
         
         trial.report(loss, i)
 
