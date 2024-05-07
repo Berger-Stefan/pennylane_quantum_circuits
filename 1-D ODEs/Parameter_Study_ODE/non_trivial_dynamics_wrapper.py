@@ -6,12 +6,14 @@ import optuna
 
 def config_and_training_wrapper(trial):
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = "cpu"
+    #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Tunable Parameter
-    n_qubits = trial.suggest_int("n_qubits", 2, 10)
-    n_layers = trial.suggest_int("n_layers", 2, 10)
-    learning_rate = trial.suggest_float("learning rate", 1e-6, 10, log=True)
+    n_qubits = trial.suggest_int("n_qubits", 6, 6)
+    n_layers = trial.suggest_int("n_layers", 1, 10)
+    learning_rate = trial.suggest_float("learning rate", 0.01, 0.2, log=True)
+    learning_rate = 0.2
     boundary_scaling = trial.suggest_float("boundary scaling", 0.1, 1e6, log=True)
     
     # Solver settings
@@ -21,8 +23,6 @@ def config_and_training_wrapper(trial):
     t = torch.linspace(t_start,t_end,n_steps,requires_grad=True, device=device)  
     
     u_0 = torch.tensor(0.75)    
-
-
 
     weights = [torch.rand((n_layers, n_qubits), requires_grad=True, device=device)]        
     biases = [torch.rand(1, requires_grad=True, device=device)]

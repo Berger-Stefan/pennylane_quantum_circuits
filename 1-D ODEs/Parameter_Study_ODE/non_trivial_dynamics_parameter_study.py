@@ -11,5 +11,4 @@ storage_name = "postgresql://user:password@192.168.2.112:5432/{}".format(study_n
 study = optuna.create_study(sampler=optuna.samplers.TPESampler(),pruner=optuna.pruners.MedianPruner(), study_name=study_name, storage=storage_name, load_if_exists=True)
 
 
-
-study.optimize(config_and_training_wrapper, n_trials=100)
+study.optimize(config_and_training_wrapper, n_trials=200)
