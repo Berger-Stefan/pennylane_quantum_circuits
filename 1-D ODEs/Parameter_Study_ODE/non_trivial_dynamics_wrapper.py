@@ -1,4 +1,3 @@
-from tkinter import Variable
 import pennylane as qml
 import torch
 import torch.autograd as autograd
@@ -31,14 +30,18 @@ def config_and_training_wrapper(trial):
     #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Tunable Parameter
-    n_qubits = 5
-    #n_qubits = trial.suggest_int("n_qubits", 4,4)
+    #n_qubits = 5
+    n_qubits = trial.suggest_int("n_qubits", 2,8)
+
     #n_layers = 5
-    n_layers = trial.suggest_int("n_layers", 1, 5)
+    n_layers = trial.suggest_int("n_layers", 1, 8)
+
     learning_rate = 0.075
     #learning_rate = trial.suggest_float("learning rate", 0.05, 0.1, log=True)
+
     boundary_scaling = 5
     # boundary_scaling = trial.suggest_float("boundary scaling", 1.0, 20, log=False)
+
     n_steps = 100
     # n_steps = trial.suggest_int("collocation points", 1e1, 1e5, log=True)
 
@@ -46,13 +49,14 @@ def config_and_training_wrapper(trial):
     embedding_fnc = getattr(embedding_choices, embedding_choice)
 
     # Solver settings
-    t_start = 0.0001
+    t_start = 0.0
     t_end   = 0.9
     t = torch.linspace(t_start,t_end,n_steps,requires_grad=True, device=device)  
+    t_start = t_start + t[1]-t[0] # Dont include the first point in the pde collocation data
 
-    param_embedding = {"t_end": t_end}
-    
     u_0 = torch.tensor(0.75)
+    
+    param_embedding = {"t_end": t_end}
     
     def derivatives_fnc(t, u):
         if isinstance(t, torch.Tensor):
@@ -61,7 +65,9 @@ def config_and_training_wrapper(trial):
             du_dt = 4*u - 6*u**2 + math.sin(50*t) + u*math.cos(25*t) - 0.5
         return du_dt
 
-    analytical_solution = torch.tensor(solve_ivp(derivatives_fnc, [t_start,t_end+0.000001], [u_0], t_eval=t.detach()).y, device=device)
+    analytical_fnc = solve_ivp(derivatives_fnc, [t_start,t_end+0.000001], [u_0], dense_output=True)
+    analytical_solution = torch.tensor(analytical_fnc.sol(t.detach()), device=device)
+    #analytical_solution = torch.tensor(solve_ivp(derivatives_fnc, [t_start,t_end+0.000001], [u_0], t_eval=t.detach()).y, device=device)
 
     weights = [torch.rand((n_layers, n_qubits), requires_grad=True, device=device)]        
     biases = [torch.rand(1, requires_grad=True, device=device)]
@@ -73,7 +79,6 @@ def config_and_training_wrapper(trial):
     opt = torch.optim.Adam(parameters, lr=learning_rate)
     loss_history = []
     loss_analytical_history = []
-
 
     @qml.qnode(qml.device("default.qubit.torch", wires=n_qubits), diff_method="backprop")
     def circuit(x, weights):
@@ -115,7 +120,7 @@ def config_and_training_wrapper(trial):
     def loss_analytical_fnc(weights, biases, scaling):
         t = torch.linspace(t_start,t_end,n_steps, requires_grad=True)
         u_pred = my_model(t, weights, biases, scaling)
-        return torch.mean((u_pred - analytical_solution)**3)
+        return torch.mean((u_pred - analytical_solution)**2)
     
     for i in range(1,201):
         opt.zero_grad()
