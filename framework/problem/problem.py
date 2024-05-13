@@ -1,7 +1,9 @@
+from tkinter import W
 from sympy import re
 import torch
 import itertools
 import pennylane as qml
+import numpy as np
     
 class Data:
     def __init__(self,  domain_dict:dict) -> None:
@@ -16,7 +18,7 @@ class Data:
 
 
 class Model:
-    def __init__(self, n_wires:int, trainable_params:dict, data:Data, embedding_ansatz, variational_ansatz, cost_function=None) -> None:
+    def __init__(self, n_wires:int, trainable_params:dict, data:Data, embedding_ansatz, variational_ansatz, cost_function=None, analytical_fnc=None) -> None:
         self.embedding_ansatz = embedding_ansatz
         self.variational_ansatz = variational_ansatz
         
@@ -34,6 +36,8 @@ class Model:
         self.trainable_params = trainable_params
 
         self.output_dim = len(trainable_params["weights"])
+
+        self.analytical_fnc = analytical_fnc
 
     def set_embedding_parameter(self):
         self.params_embedding["t_end"] = self.data.domain_dict["t"][1]
@@ -60,21 +64,33 @@ class Model:
     
 
 class Solver:
-    def __init__(self, data:Data, model:Model, pde_res_fnc, boundary_res_fnc, loss_scaling = None, optimizer="adam") -> None:
+    def __init__(self, data:Data, model:Model, pde_res_fnc, boundary_res_fnc:list, loss_scaling = None, optimizer="adam", learning_rate=0.1) -> None:
         self.data = data
         self.model = model
-        self.loss_scaling = loss_scaling
         self.pde_res_fnc = pde_res_fnc
         self.boundary_res_fnc = boundary_res_fnc
+        self.loss_values = {"pde_loss":[], "boundary_loss":[], "total_loss":[]}
+        if model.analytical_fnc != None:
+            self.loss_values["analytical_loss"] = []
 
         self.optimizer = optimizer
         if optimizer == "adam":
-            self.opt = torch.optim.Adam(sum(self.model.trainable_params.values(), []), lr=0.1)
+            self.opt = torch.optim.Adam(sum(self.model.trainable_params.values(), []), lr=learning_rate)
         elif optimizer == "lbfgs":
-            pass
-
+            self.opt = torch.optim.LBFGS(sum(self.model.trainable_params.values(), []), lr=learning_rate)
+        
+        if loss_scaling == None:
+            self.loss_scaling = [1] + [ 1 for i in range(len(boundary_res_fnc))]
+        else:
+            self.loss_scaling = loss_scaling
     
-    def loss(self):
+    def closure(self):
+        self.opt.zero_grad()
+        loss = self.loss_fnc()
+        loss.backward()
+        return loss
+    
+    def loss_fnc(self):
         # Compute PDE loss
         pde_loss_value = self.pde_res_fnc(self.model, self.data.domain)
         # Compute boundary loss
@@ -82,10 +98,15 @@ class Solver:
         for boundary_fnc in self.boundary_res_fnc:
             boundary_losses.append(boundary_fnc(self.model,self.data.domain))
         
-        if self.loss_scaling != None:
-            total_loss = self.loss_scaling[0] * pde_loss_value + sum([ self.loss_scaling(idx)*val for idx,val in enumerate(boundary_losses)])
-        else:
-            total_loss = pde_loss_value + sum(boundary_losses)
+        total_loss = self.loss_scaling[0] * pde_loss_value + sum([ self.loss_scaling[idx+1]*val for idx,val in enumerate(boundary_losses)])
+
+        # Save loss values
+        self.loss_values["total_loss"].append(total_loss.detach().numpy())
+        self.loss_values["pde_loss"].append(self.loss_scaling[0]*pde_loss_value.detach().numpy())
+        self.loss_values["boundary_loss"].append(sum([ self.loss_scaling[idx+1]*val.detach().numpy() for idx,val in enumerate(boundary_losses)]))
+        if self.model.analytical_fnc != None:
+            res_analytical = np.mean((self.model.forward(self.data.domain).detach().numpy() - self.model.analytical_fnc(self.data.domain.detach().numpy().T))**2)
+            self.loss_values["analytical_loss"].append(res_analytical)
         
         return total_loss
 
@@ -93,7 +114,22 @@ class Solver:
         if self.optimizer == "adam":
             for i in range(1,n_iter+1):
                 self.opt.zero_grad()
-                loss = self.loss()
+                loss = self.loss_fnc()
                 loss.backward()
                 self.opt.step()
-                print(f"Step: {i}  Loss: {loss}")
+                if i%100 == 0: print(f"Step: {i}  Loss: {loss}")
+                # if no improvement value is not lower then the lowest in last 100 steps
+                if i > 100 and loss.item() - min(self.loss_values["total_loss"][-20:]) >= 1e-4:
+                    break
+                
+        elif self.optimizer == "lbfgs":
+            for i in range(1,n_iter+1):
+                self.opt.step(self.closure)
+                loss = self.loss_fnc()
+                if i%1 == 0: print(f"Step: {i}  Loss: {loss}")
+                if i > 10 and loss.item() - min(self.loss_values["total_loss"][-10:]) >= 1e-4:
+                    break
+    
+    def optimize_notebook(self, n_iter=1000):
+        #TODO finish
+        pass
