@@ -1,8 +1,10 @@
-import sys, os
-root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+import os, sys
 
-# Add the root directory to the Python path
-sys.path.append(root_dir)
+# Set paths to known folder structure for different PINNs and lib files.
+file_path = os.path.dirname(__file__)
+parent_dir = "/".join([file_path, "../../"])
+sys.path.append(parent_dir)
+
 
 import logging
 import optuna
@@ -14,7 +16,13 @@ optuna.logging.get_logger("optuna").addHandler(logging.StreamHandler(sys.stdout)
 study_name = "advection_equation"  # Unique identifier of the study.
 storage_name = "postgresql://user:password@192.168.178.24:5432/master_thesis"
 
-study = optuna.create_study(sampler=optuna.samplers.TPESampler(),pruner=optuna.pruners.MedianPruner(n_warmup_steps=10), study_name=study_name, storage=storage_name, load_if_exists=True)
+study = optuna.create_study(
+    sampler=optuna.samplers.TPESampler(),
+    pruner=optuna.pruners.MedianPruner(n_warmup_steps=10),
+    study_name=study_name,
+    storage=storage_name,
+    load_if_exists=True,
+)
 # study = optuna.create_study(sampler=optuna.samplers.RandomSampler(), pruner=optuna.pruners.NopPruner(), study_name=study_name, storage=storage_name, load_if_exists=True)
 
 
