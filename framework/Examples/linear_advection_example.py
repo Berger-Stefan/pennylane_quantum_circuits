@@ -4,6 +4,7 @@ sys.path.append("../../")
 
 import framework
 import torch
+import numpy as np
 
 torch.manual_seed(42)
 
@@ -13,7 +14,7 @@ domain_dict = {"t":[0,1.0,50],"x":[-1.,1.,50]}
 data = framework.Data(domain_dict)
 
 n_wires = 6
-n_layers = 5
+n_layers = 8
 weights = torch.ones((n_layers,n_wires), requires_grad=True)
 bias = torch.ones(1, requires_grad=True)
 scaling = torch.ones(1, requires_grad=True)
@@ -22,7 +23,11 @@ params = {"weights": [weights], "bias": [bias], "scaling": [scaling]}
 embedding = framework.chebyshev_tower_embedding_alternating_2d
 variational = framework.basicEntanglerLayers
 
-model = framework.Model(n_wires, params, data, embedding, variational)
+
+def analytical_fnc(input_values):
+    return -np.sin(np.pi*input_values[:,1])
+
+model = framework.Model(n_wires, params, data, embedding, variational, analytical_fnc=analytical_fnc)
 
 # %% Solver
 
@@ -78,5 +83,5 @@ solver = framework.Solver(data, model,
 
 solver_settings_lbfgs = {"optimizer":"lbfgs", "learning_rate":1.0, "update_interval":1, "n_iter":10}
 solver_settings_adam  = {"optimizer":"adam" , "learning_rate":0.05, "update_interval":10,"n_iter":1000}
-solver.optimize(solver_settings_adam)
+solver.optimize(solver_settings_lbfgs)
 # %%
