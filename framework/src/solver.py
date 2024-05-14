@@ -46,11 +46,19 @@ class Solver:
         self.loss_values["total_loss"].append(total_loss.detach().numpy())
         self.loss_values["pde_loss"].append(self.loss_scaling[0]*pde_loss_value.detach().numpy())
         self.loss_values["boundary_loss"].append(sum([ self.loss_scaling[idx+1]*val.detach().numpy() for idx,val in enumerate(boundary_losses)]))
+        
         if self.model.analytical_fnc != None:
-            res_analytical = np.mean((self.model.forward(self.data.domain).detach().numpy() - self.model.analytical_fnc(self.data.domain.detach().numpy().T))**2)
+            if self.model.output_dim > 1:
+                res_analytical = 0
+                for i in range(self.model.output_dim):
+                    res_analytical += np.mean((self.model.forward(self.data.domain)[i].detach().numpy() - self.model.analytical_fnc(self.data.domain.detach().numpy())[i])**2)
+            else:
+                res_analytical = np.mean((self.model.forward(self.data.domain).detach().numpy() - self.model.analytical_fnc(self.data.domain.detach().numpy()))**2)
+
             self.loss_values["analytical_loss"].append(res_analytical)
         
         return total_loss
+
 
     def optimize(self, optimizer_settings_dict=None):
 
@@ -61,6 +69,7 @@ class Solver:
         self.optimizer_settings_dict = optimizer_settings_dict
         if optimizer_settings_dict["optimizer"] == "adam":
             self.opt = torch.optim.Adam(sum(self.model.trainable_params.values(), []), lr=optimizer_settings_dict["learning_rate"])
+
         elif optimizer_settings_dict["optimizer"] == "lbfgs":
             self.opt = torch.optim.LBFGS(sum(self.model.trainable_params.values(), []), lr=optimizer_settings_dict["learning_rate"])
  
@@ -77,8 +86,8 @@ class Solver:
             if i%self.optimizer_settings_dict["update_interval"] == 0: self.update(i, loss.detach().numpy())
 
             # if no improvement value is not lower then the lowest in last 100 steps
-            if i > 100 and loss.item() - min(self.loss_values["total_loss"][-20:]) >= 1e-4:
-                break
+            # if i > 100 and loss.item() - min(self.loss_values["total_loss"][-20:]) >= 1e-4:
+            #     break
     
     def update(self, iteration:int, loss:float):
         print(f"Step: {iteration}  Loss: {loss}")
@@ -140,8 +149,13 @@ class Solver:
             ax.plot(t, self.model.analytical_fnc(t).T , label="Analytical", c="green", lw=4, alpha = 0.5)
             
         t = self.model.data.domain
-        u = self.model.forward(t).detach().numpy()
-        ax.plot(t.detach().numpy(), u , label="Q-ML", c="red", ls="dashdot", lw=2)
+        u = self.model.forward(t)
+
+        if isinstance(u, list): # Check whether the output comes from a system of odes
+            for u_i in u:
+                ax.plot(t.detach().numpy(), u_i.squeeze().detach().numpy() , label="Q-ML", c="red", ls="dashdot", lw=2)
+        else:
+            ax.plot(t.detach().numpy(), u.squeeze().detach().numpy() , label="Q-ML", c="red", ls="dashdot", lw=2)
             
         ax.legend(fontsize=9, loc=1)
         ax.set_xlabel("t step", fontsize=13)

@@ -9,10 +9,10 @@ torch.manual_seed(42)
 
 # %% Data & Model
 
-domain_dict = {"t":[0,1.0,10],"x":[-1.,1.,10]}
+domain_dict = {"t":[0,1.0,50],"x":[-1.,1.,50]}
 data = framework.Data(domain_dict)
 
-n_wires = 8
+n_wires = 6
 n_layers = 3
 weights = torch.ones((n_layers,n_wires), requires_grad=True)
 bias = torch.ones(1, requires_grad=True)
@@ -65,18 +65,18 @@ def pde_res_fnc(model, input_values):
     du_du_dx = torch.autograd.grad(du_dx_pred, input_values, grad_outputs=grad_outputs_1, create_graph=True)[0]
     du_dx_dx_pred = du_du_dx[:,1]
     
-    res_pde = du_dt_pred # + u_pred * du_dx_pred - 0.01/torch.pi*du_dx_dx_pred
+    res_pde = du_dt_pred + u_pred * du_dx_pred - 0.01/torch.pi*du_dx_dx_pred
 
     return torch.mean(res_pde**2)
 
 solver = framework.Solver(data, model,
                           pde_res_fnc, [bd1_fnc, bd3_fnc, bd4_fnc],
-                          loss_scaling=[1,1,1,2],
+                          loss_scaling=[1,1,1,20],
                           plot_update_functions=["plot_loss", "plot_2d_contour"])
 
 # %% Optimizer
 
 solver_settings_lbfgs = {"optimizer":"lbfgs", "learning_rate":1.0, "update_interval":1, "n_iter":10}
 solver_settings_adam  = {"optimizer":"adam" , "learning_rate":0.05, "update_interval":10,"n_iter":100}
-solver.optimize(solver_settings_adam)
+solver.optimize(solver_settings_lbfgs)
 # %%
