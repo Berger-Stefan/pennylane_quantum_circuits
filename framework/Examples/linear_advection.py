@@ -65,7 +65,7 @@ def pde_res_fnc(model, input_values):
     du_du_dx = torch.autograd.grad(du_dx_pred, input_values, grad_outputs=grad_outputs_1, create_graph=True)[0]
     du_dx_dx_pred = du_du_dx[:,1]
     
-    res_pde = du_dt_pred + u_pred * du_dx_pred - 0.01/torch.pi*du_dx_dx_pred
+    res_pde = du_dt_pred 
 
     return torch.mean(res_pde**2)
 
