@@ -53,6 +53,6 @@ solver = framework.Solver(data, model,
 
 solver_settings_lbfgs = {"optimizer":"lbfgs", "learning_rate":1.0, "update_interval":1, "n_iter":10}
 solver_settings_adam  = {"optimizer":"adam" , "learning_rate":0.05, "update_interval":10,"n_iter":100}
-%timeit -n1 -r1 solver.optimize(solver_settings_adam)
+solver.optimize(solver_settings_adam)
 
 # %%

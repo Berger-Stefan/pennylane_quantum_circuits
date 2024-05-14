@@ -19,7 +19,9 @@ class Model:
         self.set_embedding_parameter()
 
     def set_embedding_parameter(self):
-        self.params_embedding["t_end"] = self.data.domain_dict["t"][1]
+        for  i in range(self.data.n_dim):
+            self.params_embedding[f"x_{i}_min"] = min(self.data.domain[:,i])
+            self.params_embedding[f"x_{i}_max"] = max(self.data.domain[:,i])
     
 
     def circuit(self, input_values, weights):

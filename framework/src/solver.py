@@ -6,6 +6,8 @@ import itertools
 import os
 from matplotlib.gridspec import GridSpec
 from IPython import display
+import optuna
+import datetime
 
 from .data import Data
 from .model import Model
@@ -84,9 +86,32 @@ class Solver:
 
             if i%self.optimizer_settings_dict["update_interval"] == 0: self.update(i, loss.detach().numpy())
 
-            # if no improvement value is not lower then the lowest in last 100 steps
-            # if i > 100 and loss.item() - min(self.loss_values["total_loss"][-20:]) >= 1e-4:
-            #     break
+    def optimize_optuna(self, optimizer_settings_dict, trial):
+
+        self.optimizer_settings_dict = optimizer_settings_dict
+
+        if optimizer_settings_dict["optimizer"] == "adam":
+            self.opt = torch.optim.Adam(sum(self.model.trainable_params.values(), []), lr=optimizer_settings_dict["learning_rate"])
+        elif optimizer_settings_dict["optimizer"] == "lbfgs":
+            self.opt = torch.optim.LBFGS(sum(self.model.trainable_params.values(), []), lr=optimizer_settings_dict["learning_rate"])
+
+        start_time = datetime.now()
+ 
+        for i in range(1,self.optimizer_settings_dict["n_iter"]+1):
+            if self.optimizer_settings_dict["optimizer"] == "adam":
+                self.opt.zero_grad()
+                loss = self.loss_fnc()
+                loss.backward()
+                self.opt.step()
+            elif self.optimizer_settings_dict["optimizer"] == "lbfgs":
+                self.opt.step(self.closure)
+                loss = self.loss_fnc()
+                
+            trial.report(min(self.loss_values["analytical_loss"]), i)
+            if trial.should_prune():
+                raise optuna.TrialPruned()
+            if (datetime.now() - start_time).total_seconds() > (10*60): return min(self.loss_values["analytical_loss"])
+
     
     def update(self, iteration:int, loss:float):
         print(f"Step: {iteration}  Loss: {loss}")

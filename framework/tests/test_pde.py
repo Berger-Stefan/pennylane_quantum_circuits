@@ -19,7 +19,7 @@ def test_pde():
     scaling = torch.ones(1, requires_grad=True)
     params = {"weights": [weights], "bias": [bias], "scaling": [scaling]}
 
-    embedding = framework.chebyshev_tower_embedding_alternating_2d
+    embedding = framework.atan_embedding_alternating_2d
     variational = framework.basicEntanglerLayers
 
     model = framework.Model(n_wires, params, data, embedding, variational)
