@@ -31,7 +31,7 @@ def test_adam():
     du_dt = lambda t, u: 4*u - 6*u**2 + math.sin(50*t) + u*math.cos(25*t) - 0.5
     analytical_sol_fnc = solve_ivp(du_dt, [domain_dict["t"][0],domain_dict["t"][1]+0.000001], [0.75], t_eval=t, dense_output=True)
     def analytical_fnc(t):
-        return analytical_sol_fnc.sol(t[:,0])
+        return analytical_sol_fnc.sol(t)
 
     model = framework.Model(n_wires, params, data, embedding, variational, analytical_fnc=analytical_fnc)
 
@@ -73,7 +73,7 @@ def test_lbfgs():
     du_dt = lambda t, u: 4*u - 6*u**2 + math.sin(50*t) + u*math.cos(25*t) - 0.5
     analytical_sol_fnc = solve_ivp(du_dt, [domain_dict["t"][0],domain_dict["t"][1]+0.000001], [0.75], t_eval=t, dense_output=True)
     def analytical_fnc(t):
-        return analytical_sol_fnc.sol(t[:,0])
+        return analytical_sol_fnc.sol(t)
 
     model = framework.Model(n_wires, params, data, embedding, variational, analytical_fnc=analytical_fnc)
 

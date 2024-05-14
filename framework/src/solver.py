@@ -53,8 +53,7 @@ class Solver:
                 for i in range(self.model.output_dim):
                     res_analytical += np.mean((self.model.forward(self.data.domain)[i].detach().numpy() - self.model.analytical_fnc(self.data.domain.detach().numpy())[i])**2)
             else:
-                res_analytical = np.mean((self.model.forward(self.data.domain).detach().numpy() - self.model.analytical_fnc(self.data.domain.detach().numpy()))**2)
-
+                res_analytical = np.mean((self.model.forward(self.data.domain).detach().numpy() - self.model.analytical_fnc(self.data.domain.detach().numpy()).T.squeeze())**2)
             self.loss_values["analytical_loss"].append(res_analytical)
         
         return total_loss
@@ -145,17 +144,17 @@ class Solver:
         ax.grid()
         
         if self.model.analytical_fnc != None:
-            t = torch.linspace(self.model.data.domain_dict["t"][0], self.model.data.domain_dict["t"][1], 1000)[:,None]
-            ax.plot(t, self.model.analytical_fnc(t).T , label="Analytical", c="green", lw=4, alpha = 0.5)
+            t = torch.linspace(self.model.data.domain_dict["t"][0], self.model.data.domain_dict["t"][1], 1000)
+            ax.plot(t, self.model.analytical_fnc(t).T.squeeze() , label="Analytical", c="green", lw=4, alpha = 0.5)
             
         t = self.model.data.domain
         u = self.model.forward(t)
 
-        if isinstance(u, list): # Check whether the output comes from a system of odes
+        if self.model.output_dim > 1:
             for u_i in u:
                 ax.plot(t.detach().numpy(), u_i.squeeze().detach().numpy() , label="Q-ML", c="red", ls="dashdot", lw=2)
         else:
-            ax.plot(t.detach().numpy(), u.squeeze().detach().numpy() , label="Q-ML", c="red", ls="dashdot", lw=2)
+            ax.plot(t.detach().numpy(), u.detach().numpy() , label="Q-ML", c="red", ls="dashdot", lw=2)
             
         ax.legend(fontsize=9, loc=1)
         ax.set_xlabel("t step", fontsize=13)

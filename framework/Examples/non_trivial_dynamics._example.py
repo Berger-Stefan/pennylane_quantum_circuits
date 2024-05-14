@@ -9,11 +9,11 @@ from scipy.integrate import solve_ivp
 torch.manual_seed(42)
 
 # %% Data & Model
-domain_dict = {"t":[0.001,0.9,100]}
+domain_dict = {"t":[0.001,0.9,1000]}
 data = framework.Data(domain_dict)
 
 n_wires = 8
-n_layers = 5
+n_layers = 8
 weights = torch.ones((n_layers,n_wires), requires_grad=True)
 bias = torch.ones(1, requires_grad=True)
 scaling = torch.ones(1, requires_grad=True)
@@ -25,10 +25,9 @@ variational = framework.basicEntanglerLayers
 t = torch.linspace(domain_dict["t"][0], domain_dict["t"][1], 1000)
 du_dt = lambda t, u: 4*u - 6*u**2 + math.sin(50*t) + u*math.cos(25*t) - 0.5
 analytical_sol_fnc = solve_ivp(du_dt, [domain_dict["t"][0],domain_dict["t"][1]+0.000001], [0.75], t_eval=t, dense_output=True)
-analytical_sol_vec = solve_ivp(du_dt, [domain_dict["t"][0],domain_dict["t"][1]+0.000001], [0.75], t_eval=t).y
 
 def analytical_fnc(input_values):
-    return analytical_sol_fnc.sol(*input_values.T)
+    return analytical_sol_fnc.sol(input_values)
 
 model = framework.Model(n_wires, params, data, embedding, variational, analytical_fnc=analytical_fnc)
 
@@ -53,7 +52,7 @@ solver = framework.Solver(data, model,
                           plot_update_functions=plot_update_functions)
 
 solver_settings_lbfgs = {"optimizer":"lbfgs", "learning_rate":1.0, "update_interval":1, "n_iter":10}
-solver_settings_adam  = {"optimizer":"adam" , "learning_rate":0.05, "update_interval":10,"n_iter":200}
-solver.optimize(solver_settings_lbfgs)
+solver_settings_adam  = {"optimizer":"adam" , "learning_rate":0.05, "update_interval":10,"n_iter":100}
+%timeit -n1 -r1 solver.optimize(solver_settings_adam)
 
 # %%

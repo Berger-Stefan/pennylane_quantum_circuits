@@ -30,7 +30,7 @@ t = torch.linspace(domain_dict["t"][0], domain_dict["t"][1], 100)
 du_dt = lambda t, u: [5*u[1] + 3*u[0], - 3*u[1] - 5*u[0]]
 analytical_sol_fnc = solve_ivp(du_dt, [domain_dict["t"][0],domain_dict["t"][1]+0.000001], [.5, 0.0], t_eval=t, dense_output=True)
 def analytical_fnc(t):
-    return analytical_sol_fnc.sol(*t.T)
+    return analytical_sol_fnc.sol(t)
 
 model = framework.Model(n_wires, params, data, embedding, variational, analytical_fnc=analytical_fnc)
 
@@ -69,9 +69,9 @@ solver = framework.Solver(data, model,
                           plot_update_functions=["plot_loss", "plot_function_values_over_t"])
 
 # %% Optimizer
-solver_settings_adam  = {"optimizer":"adam" , "learning_rate":0.1, "update_interval":10,"n_iter":1000}
+solver_settings_adam  = {"optimizer":"adam" , "learning_rate":0.1, "update_interval":10,"n_iter":200}
 solver_settings_lbfgs = {"optimizer":"lbfgs", "learning_rate":1.0, "update_interval":1,"n_iter":100}
-solver.optimize(solver_settings_lbfgs)
+%timeit -n1 -r1 solver.optimize(solver_settings_adam)
 
 
 # %%
