@@ -3,6 +3,7 @@ import pytest
 import sys
 sys.path.append("../")
 sys.path.append("../../")
+sys.path.append("../../../")
 
 import framework
 import torch
@@ -41,7 +42,7 @@ def test_adam():
         res = du_dt_pred - (4*u_pred - 6*u_pred**2 + torch.sin(50*t) + u_pred*torch.cos(25*t) - 0.5)
         return torch.mean(res**2)
     
-    def boundary_res_fnc(model, t):
+    def boundary_res_fnc(model):
         boundary_domain = torch.tensor([0.0], requires_grad=True)
         u_pred = model.forward(boundary_domain)
         return torch.mean((u_pred-0.75*torch.ones_like(u_pred))**2)
@@ -83,7 +84,7 @@ def test_lbfgs():
         res = du_dt_pred - (4*u_pred - 6*u_pred**2 + torch.sin(50*t) + u_pred*torch.cos(25*t) - 0.5)
         return torch.mean(res**2)
     
-    def boundary_res_fnc(model, t):
+    def boundary_res_fnc(model):
         boundary_domain = torch.tensor([0.0], requires_grad=True)
         u_pred = model.forward(boundary_domain)
         return torch.mean((u_pred-0.75*torch.ones_like(u_pred))**2)

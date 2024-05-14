@@ -1,9 +1,11 @@
+from tkinter import W
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
+import itertools
+import os
 from matplotlib.gridspec import GridSpec
 from IPython import display
-import os
 
 from .data import Data
 from .model import Model
@@ -36,7 +38,7 @@ class Solver:
         # Compute boundary loss
         boundary_losses  = []
         for boundary_fnc in self.boundary_res_fnc:
-            boundary_losses.append(boundary_fnc(self.model,self.data.domain))
+            boundary_losses.append(boundary_fnc(self.model))
         
         total_loss = self.loss_scaling[0] * pde_loss_value + sum([ self.loss_scaling[idx+1]*val for idx,val in enumerate(boundary_losses)])
 
@@ -146,5 +148,23 @@ class Solver:
         ax.set_ylabel("U(t)", fontsize=13)
         ax.set_title("Values of Time",fontsize=16)
 
+    def plot_2d_contour(self, ax:plt.Axes=None):
+        if ax == None: 
+            fig, ax = plt.subplots()
+
+        ax.grid()
         
-                
+        x_1 = torch.linspace(self.data.domain_dict["t"][0], self.data.domain_dict["t"][1], 100)
+        x_2 = torch.linspace(self.data.domain_dict["x"][0], self.data.domain_dict["x"][1], 100)
+        domain_plot = torch.tensor([x for x in itertools.product(x_1,x_2)], requires_grad=True)
+        u = self.model.forward(domain_plot)
+        u = u.reshape(len(x_1), len(x_2)).detach().numpy()
+        contourf = ax.contourf(x_1.detach().numpy(), x_2.detach().numpy(), u.T, levels=50, cmap="jet")
+        cbar = plt.colorbar(contourf, ax=ax)
+        cbar.set_label('u', fontsize=13)  # Set label for the colorbar
+        ax.set_xlabel("t", fontsize=13)
+        ax.set_ylabel("x", fontsize=13)
+        ax.set_title("2D Contour",fontsize=16)
+
+
+        return ax
